@@ -8,7 +8,6 @@ Created on Sun Oct  8 10:10:20 2017
 
 import torch
 from torchvision import datasets
-from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.utils import save_image
@@ -21,8 +20,8 @@ warnings.filterwarnings("ignore")
 ##################################
 # Load test data
 ##################################
-test_data = datasets.MNIST(root='./data', train=False)
-test_x = Variable(torch.unsqueeze(test_data.test_data, dim=1), volatile=True).type(torch.FloatTensor).cuda()/255.
+test_data = datasets.MNIST(root='../../data/', train=False)
+test_x = torch.FloatTensor(torch.unsqueeze(test_data.test_data, dim=1)).cuda()/255.
 test_y = test_data.test_labels
 
 ##################################
@@ -96,7 +95,6 @@ def cluster_acc(Y_pred, Y):
   return sum([w[i,j] for i,j in zip(*ind)])*1.0/Y_pred.size, w     
     
 
-
 [Q, P] = torch.load('./model/mnist_test.pkl')
 
 
@@ -123,8 +121,6 @@ c3 = np.hstack([ np.zeros_like(c), np.zeros_like(c), c, np.zeros_like(c)])
 c4 = np.hstack([np.zeros_like(c), np.zeros_like(c), np.zeros_like(c), c])
 dis_c = torch.FloatTensor(100, 10).cuda()
 con_c = torch.FloatTensor(100, 4).cuda()
-dis_c = Variable(dis_c)
-con_c = Variable(con_c)
 
 #plot images
 P.eval()

@@ -9,7 +9,6 @@ Created on Wed Aug  7 09:36:44 2019
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.autograd import Variable
 
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
@@ -41,8 +40,8 @@ class Trainer:
         '''
         idx = np.random.randint(0, 10, self.batch_size)
         cat = np.eye(n_classes)[idx].astype('float32')
-        cat = torch.from_numpy(cat)
-        return Variable(cat).cuda(),idx
+        cat = torch.tensor(cat)
+        return cat.cuda(), idx
 
     def zerograd(self):
         self.q.zero_grad()
@@ -76,19 +75,14 @@ class Trainer:
         ##################################
         # Mnist digits dataset
         train_data = datasets.MNIST(
-            root = './data',
+            root = '../../data/',
             train = True,                                     # this is training data
             transform = transforms.ToTensor(),    # Converts a PIL.Image or numpy.ndarray to
                                                             # torch.FloatTensor of shape (C x H x W) and normalize in the range [0.0, 1.0]
-            download = 1                        # download it if you don't have it
-        )
-        
+            download = 1                       # download it if you don't have it
+        )        
         
         train_loader = DataLoader(dataset = train_data, batch_size = self.batch_size, shuffle = True, num_workers = 8)
-        #test data
-        test_data = datasets.MNIST(root='./data', train = False)
-        test_x = Variable(torch.unsqueeze(test_data.test_data, dim = 1), volatile = True).type(torch.FloatTensor).cuda()/255.
-        test_y = test_data.test_labels
         
         #loss function
         mse_dis = nn.MSELoss().cuda()
@@ -111,11 +105,10 @@ class Trainer:
         c2 = np.hstack([np.zeros_like(c), c, np.zeros_like(c), np.zeros_like(c)])
         c3 = np.hstack([ np.zeros_like(c), np.zeros_like(c), c, np.zeros_like(c)])
         c4 = np.hstack([np.zeros_like(c), np.zeros_like(c), np.zeros_like(c), c])
+
         dis_c = torch.FloatTensor(100, 10).cuda()
         con_c = torch.FloatTensor(100, 4).cuda()
-        dis_c = Variable(dis_c)
-        con_c = Variable(con_c)
-        
+
         ACC = np.zeros(self.epoch)
         
         #train network
@@ -132,15 +125,13 @@ class Trainer:
             
             for X, _ in tqdm(train_loader):
         
-                X = Variable(X).cuda()
+                X = X.cuda()
                 
                 # Init gradients
                 self.zerograd()
         
                 # D loss
-                z_real_gauss = Variable(torch.randn(self.batch_size, 4))
-                z_real_gauss = z_real_gauss.cuda()
-            
+                z_real_gauss = torch.randn(self.batch_size, 4).cuda()            
                 z_fake_gauss,_ = self.q(X)
             
                 D_real_gauss = self.d(z_real_gauss)
@@ -188,9 +179,8 @@ class Trainer:
                 
                 #recon y and d
                 y,idx = self.sample_categorical(n_classes=10)
-                z = Variable(torch.randn(self.batch_size, 4)).cuda()
-                class_ = torch.LongTensor(idx).cuda()
-                target = Variable(class_)
+                z = torch.randn(self.batch_size, 4).cuda()
+                target = torch.LongTensor(idx).cuda()
                 
                 X_sample = self.p(torch.cat((z,y),1).resize(self.batch_size,14,1,1))
                 z_recon, y_recon = self.q(X_sample)
@@ -203,39 +193,45 @@ class Trainer:
                 # Init gradients
                 self.zerograd()
                 
-            #test model  
-            self.q.eval()  
-            _,y = self.q(test_x)
-            pred_y = torch.max(y, 1)[1].cpu().data.squeeze()
-            label_y = pred_y.cpu().numpy()
-            real_y = test_y.numpy()
-            acc = self.cluster_acc(label_y,real_y)
-            print('h_loss: {:.4}; D_gauss: {:.4}; G_gauss: {:.4}; recon_loss: {:.4}; I_loss: {:.4}; acc:'.format(h_loss.item(), D_loss.item(), G_loss.item(), recon_loss.item(), I_loss.item()), acc[0])
-            ACC[epoch] = acc[0]
-            
-            #plot images
-            self.p.eval()
-            dis_c.data.copy_(torch.Tensor(one_hot))
-            
-            con_c.data.copy_(torch.from_numpy(c1))
-            z = torch.cat([con_c, dis_c], 1).view(-1, 14, 1, 1)
-            x_save = self.p(z)
-            save_image(x_save.data, './tmp/g_%d_c1.png'%epoch, nrow=10)
-    
-            con_c.data.copy_(torch.from_numpy(c2))
-            z = torch.cat([con_c, dis_c], 1).view(-1, 14, 1, 1)
-            x_save = self.p(z)
-            save_image(x_save.data, './tmp/g_%d_c2.png'%epoch, nrow=10)
-    
-            con_c.data.copy_(torch.from_numpy(c3))
-            z = torch.cat([con_c, dis_c], 1).view(-1, 14, 1, 1)
-            x_save = self.p(z)
-            save_image(x_save.data, './tmp/g_%d_c3.png'%epoch, nrow=10)
-    
-            con_c.data.copy_(torch.from_numpy(c4))
-            z = torch.cat([con_c, dis_c], 1).view(-1, 14, 1, 1)
-            x_save = self.p(z)
-            save_image(x_save.data, './tmp/g_%d_c4.png'%epoch, nrow=10)
+            #test data
+            test_data = datasets.MNIST(root='../../data/', train = False)
+            with torch.no_grad():
+                test_x = torch.unsqueeze(test_data.test_data, dim = 1).float().cuda()/255.
+                test_y = test_data.test_labels
+                
+                #test model  
+                self.q.eval()  
+                _,y = self.q(test_x)
+                pred_y = torch.max(y, 1)[1].cpu().data.squeeze()
+                label_y = pred_y.cpu().numpy()
+                real_y = test_y.numpy()
+                acc = self.cluster_acc(label_y,real_y)
+                print('h_loss: {:.4}; D_gauss: {:.4}; G_gauss: {:.4}; recon_loss: {:.4}; I_loss: {:.4}; acc:'.format(h_loss.item(), D_loss.item(), G_loss.item(), recon_loss.item(), I_loss.item()), acc[0])
+                ACC[epoch] = acc[0]
+                
+                #plot images
+                self.p.eval()
+                dis_c.data.copy_(torch.Tensor(one_hot))
+                
+                con_c.data.copy_(torch.from_numpy(c1))
+                z = torch.cat([con_c, dis_c], 1).view(-1, 14, 1, 1)
+                x_save = self.p(z)
+                save_image(x_save.data, './tmp/g_%d_c1.png'%epoch, nrow=10)
+        
+                con_c.data.copy_(torch.from_numpy(c2))
+                z = torch.cat([con_c, dis_c], 1).view(-1, 14, 1, 1)
+                x_save = self.p(z)
+                save_image(x_save.data, './tmp/g_%d_c2.png'%epoch, nrow=10)
+        
+                con_c.data.copy_(torch.from_numpy(c3))
+                z = torch.cat([con_c, dis_c], 1).view(-1, 14, 1, 1)
+                x_save = self.p(z)
+                save_image(x_save.data, './tmp/g_%d_c3.png'%epoch, nrow=10)
+        
+                con_c.data.copy_(torch.from_numpy(c4))
+                z = torch.cat([con_c, dis_c], 1).view(-1, 14, 1, 1)
+                x_save = self.p(z)
+                save_image(x_save.data, './tmp/g_%d_c4.png'%epoch, nrow=10)
         
         #save model
         torch.save([self.q, self.p, self.d],'./model/mnist_cluster.pkl')
