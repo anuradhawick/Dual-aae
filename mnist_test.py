@@ -98,52 +98,53 @@ def cluster_acc(Y_pred, Y):
 [Q, P] = torch.load('./model/mnist_test.pkl')
 
 
-#test model
-real_y = test_y.numpy()
-Q.eval()        
-_,y = Q(test_x)
-pred_y = torch.max(y, 1)[1].cpu().data.squeeze()
-label_y = pred_y.cpu().numpy()
-acc = cluster_acc(label_y,real_y)
+with torch.no_grad():
+  #test model
+  real_y = test_y.numpy()
+  Q.eval()        
+  _,y = Q(test_x)
+  pred_y = torch.max(y, 1)[1].cpu().data.squeeze()
+  label_y = pred_y.cpu().numpy()
+  acc = cluster_acc(label_y,real_y)
 
-print(acc)
+  print(acc)
 
-# fixed random variables
-Idx = np.arange(10).repeat(10)
-one_hot = np.zeros((100, 10))
-one_hot[range(100), Idx] = 1
-  
-c = np.linspace(-2, 2, 10).reshape(1,-1)
-c = np.repeat(c, 10 ,0).reshape(-1, 1)
-c1 = np.hstack([c, np.zeros_like(c), np.zeros_like(c), np.zeros_like(c)])
-c2 = np.hstack([np.zeros_like(c), c, np.zeros_like(c), np.zeros_like(c)])
-c3 = np.hstack([ np.zeros_like(c), np.zeros_like(c), c, np.zeros_like(c)])
-c4 = np.hstack([np.zeros_like(c), np.zeros_like(c), np.zeros_like(c), c])
-dis_c = torch.FloatTensor(100, 10).cuda()
-con_c = torch.FloatTensor(100, 4).cuda()
+  # fixed random variables
+  Idx = np.arange(10).repeat(10)
+  one_hot = np.zeros((100, 10))
+  one_hot[range(100), Idx] = 1
+    
+  c = np.linspace(-2, 2, 10).reshape(1,-1)
+  c = np.repeat(c, 10 ,0).reshape(-1, 1)
+  c1 = np.hstack([c, np.zeros_like(c), np.zeros_like(c), np.zeros_like(c)])
+  c2 = np.hstack([np.zeros_like(c), c, np.zeros_like(c), np.zeros_like(c)])
+  c3 = np.hstack([ np.zeros_like(c), np.zeros_like(c), c, np.zeros_like(c)])
+  c4 = np.hstack([np.zeros_like(c), np.zeros_like(c), np.zeros_like(c), c])
+  dis_c = torch.FloatTensor(100, 10).cuda()
+  con_c = torch.FloatTensor(100, 4).cuda()
 
-#plot images
-P.eval()
-dis_c.data.copy_(torch.Tensor(one_hot))
+  #plot images
+  P.eval()
+  dis_c.data.copy_(torch.Tensor(one_hot))
 
-con_c.data.copy_(torch.from_numpy(c1))
-z = torch.cat([con_c, dis_c], 1).view(-1, 14, 1, 1)
-x_save = P(z)
-save_image(x_save.data, './tmp/gen_c1.png', nrow=10)
+  con_c.data.copy_(torch.from_numpy(c1))
+  z = torch.cat([con_c, dis_c], 1).view(-1, 14, 1, 1)
+  x_save = P(z)
+  save_image(x_save.data, './tmp/gen_c1.png', nrow=10)
 
-con_c.data.copy_(torch.from_numpy(c2))
-z = torch.cat([con_c, dis_c], 1).view(-1, 14, 1, 1)
-x_save = P(z)
-save_image(x_save.data, './tmp/gen_c2.png', nrow=10)
+  con_c.data.copy_(torch.from_numpy(c2))
+  z = torch.cat([con_c, dis_c], 1).view(-1, 14, 1, 1)
+  x_save = P(z)
+  save_image(x_save.data, './tmp/gen_c2.png', nrow=10)
 
-con_c.data.copy_(torch.from_numpy(c3))
-z = torch.cat([con_c, dis_c], 1).view(-1, 14, 1, 1)
-x_save = P(z)
-save_image(x_save.data, './tmp/gen_c3.png', nrow=10)
+  con_c.data.copy_(torch.from_numpy(c3))
+  z = torch.cat([con_c, dis_c], 1).view(-1, 14, 1, 1)
+  x_save = P(z)
+  save_image(x_save.data, './tmp/gen_c3.png', nrow=10)
 
-con_c.data.copy_(torch.from_numpy(c4))
-z = torch.cat([con_c, dis_c], 1).view(-1, 14, 1, 1)
-x_save = P(z)
-save_image(x_save.data, './tmp/gen_c4.png', nrow=10)
+  con_c.data.copy_(torch.from_numpy(c4))
+  z = torch.cat([con_c, dis_c], 1).view(-1, 14, 1, 1)
+  x_save = P(z)
+  save_image(x_save.data, './tmp/gen_c4.png', nrow=10)
 
     
